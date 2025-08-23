@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Red Neuronal Multicapa - Visualización</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin:0; background:#f4f7ff; }
+.main-container { max-width:1000px; margin:20px auto; background:#fff; border-radius:12px; padding:20px; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+h1 { text-align:center; color:#2d3a6b; }
+.controls { display:flex; gap:20px; justify-content:center; margin:20px 0; flex-wrap:wrap; }
+.plot-container { width:800px; height:600px; margin:0 auto; }
+</style>
+</head>
+<body>
+<div class="main-container">
+<h1>Red Neuronal Multicapa - Visualización Entrenamiento</h1>
+
+<div class="controls">
+  <label>Dataset:
+    <select id="dataset"></select>
+  </label>
+  <label>Neuronas ocultas:
+    <select id="neurons"></select>
+  </label>
+  <label>Learning rate:
+    <select id="lr"></select>
+  </label>
+  <label>Iteración:
+    <input type="range" id="iter" min="0" max="0" step="1" value="0">
+    <span id="iterValue">0</span>
+  </label>
+</div>
+
+<div id="plot" class="plot-container"></div>
+</div>
+
+<script>
+// =================== DATASETS ===================
+const datasets = {
+    "Dataset1": {
+        "X": [
+            [1.1946,3.9502],[3.9788,1.6595],[1.1907,1.6117],[2.6180,3.8272],
+            [0.2032,1.9208],[3.7946,0.9502],[3.8946,2.1502],[2.1946,3.9502],
+            [2.9571,1.9931],[2.7125,2.8166],[1.9392,1.1032],[2.2072,0.9123],
+            [2.4799,1.9982],[2.4763,0.8020]
+        ],
+        "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1]
+    },
+    "Dataset2": {
+        "X": [
+            [2.0,2.0],[2.2,2.1],[1.8,2.2],[2.1,1.8],
+            [0.5,0.5],[0.5,3.5],[3.5,0.5],[3.5,3.5],
+            [1.0,3.0],[3.0,1.0],[1.0,1.0],[3.0,3.0]
+        ],
+        "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1]
+    },
+    "Dataset3": {
+        "X": [
+            [2.0,2.0],[2.1,2.2],[1.9,2.1],[2.2,1.9],
+            [1.0,2.0],[2.0,1.0],[3.0,2.0],[2.0,3.0],
+            [1.0,1.0],[3.0,1.0],[1.0,3.0],[3.0,3.0]
+        ],
+        "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1]
+    }
+};
+
+// =================== INTERFAZ ===================
+const datasetSel = document.getElementById("dataset");
+const neuronSel = document.getElementById("neurons");
+const lrSel = document.getElementById("lr");
+const iterSlider = document.getElementById("iter");
+const iterValue = document.getElementById("iterValue");
+
+let resultados = {}; // se cargará desde JSON
+
+function populateSelectors() {
+  Object.keys(resultados).forEach(d => datasetSel.add(new Option(d,d)));
+  datasetSel.value = Object.keys(resultados)[0];
+  updateNeuronOptions();
+}
+function updateNeuronOptions() {
+  neuronSel.innerHTML="";
+  const d = datasetSel.value;
+  Object.keys(resultados[d]).forEach(n => neuronSel.add(new Option(n,n)));
+  updateLrOptions();
+}
+function updateLrOptions() {
+  lrSel.innerHTML="";
+  const d = datasetSel.value, n = neuronSel.value;
+  Object.keys(resultados[d][n]).forEach(l => lrSel.add(new Option(l,l)));
+  updateIterSlider();
+}
+function updateIterSlider() {
+  const d = datasetSel.value, n = neuronSel.value, l = lrSel.value;
+  const max = resultados[d][n][l].length-1;
+  iterSlider.max = max; iterSlider.value=0; iterValue.textContent="0";
+  updatePlot();
+}
+
+datasetSel.onchange=updateNeuronOptions;
+neuronSel.onchange=updateLrOptions;
+lrSel.onchange=updateIterSlider;
+iterSlider.oninput=()=>{ iterValue.textContent=iterSlider.value; updatePlot(); };
+
+// =================== GRAFICAR ===================
+function updatePlot(){
+  const d = datasetSel.value, n = neuronSel.value, l = lrSel.value, i = +iterSlider.value;
+  const snap = resultados[d][n][l][i];
+  const data = datasets[d];
+  
+  // puntos
+  let pts = {
+    x: data.X.map(p=>p[0]),
+    y: data.X.map(p=>p[1]),
+    mode:"markers",
+    marker:{color:data.y.map(v=>v==1?"blue":"red"), size:10},
+    type:"scatter"
+  };
+  
+  // rectas ocultas
+  let lines=[];
+  snap.w1.forEach((w,idx)=>{
+    const b = snap.b1[idx];
+    const x=[-2,8]; 
+    const y=x.map(xx=>(-w[0]*xx-b)/w[1]);
+    lines.push({x,y,mode:"lines",line:{dash:"dot"},name:`Oculta ${idx+1}`});
+  });
+
+  Plotly.newPlot("plot",[pts,...lines],{
+    title:`${d} - ${n} neuronas - lr=${l} - iter=${i}`,
+    xaxis:{range:[-2,8], zeroline:true},
+    yaxis:{range:[-2,8], zeroline:true}
+  });
+}
+
+// =================== CARGAR JSON ===================
+fetch('resultados.json')
+  .then(response => response.json())
+  .then(data => {
+    resultados = data;
+    populateSelectors();
+  })
+  .catch(err => console.error("Error cargando JSON:", err));
+</script>
+</body>
+</html>
