@@ -93,8 +93,10 @@ function updateLrOptions() {
 }
 function updateIterSlider() {
   const d = datasetSel.value, n = neuronSel.value, l = lrSel.value;
-  const max = resultados[d][n][l].length-1;
-  iterSlider.max = max; iterSlider.value=0; iterValue.textContent="0";
+  const max = resultados[d]?.[n]?.[l]?.length - 1 || 0;
+  iterSlider.max = max;
+  iterSlider.value = 0;
+  iterValue.textContent = "0";
   updatePlot();
 }
 
@@ -151,4 +153,5 @@ fetch('resultados.json')
 </script>
 </body>
 </html>
+
 
