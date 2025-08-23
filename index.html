@@ -104,10 +104,16 @@ lrSel.onchange=updateIterSlider;
 iterSlider.oninput=()=>{ iterValue.textContent=iterSlider.value; updatePlot(); };
 
 // =================== GRAFICAR ===================
-function updatePlot(){
+function updatePlot() {
   const d = datasetSel.value, n = neuronSel.value, l = lrSel.value, i = +iterSlider.value;
-  const snap = resultados[d][n][l][i];
+
+  const snap = resultados[d]?.[n]?.[l]?.[i];
   const data = datasets[d];
+
+  if (!snap) {
+    console.warn("No hay datos para esta selección:", d, n, l, i);
+    return; // salimos de la función si snap no existe
+  }
   
   // puntos
   let pts = {
@@ -145,3 +151,4 @@ fetch('resultados.json')
 </script>
 </body>
 </html>
+
