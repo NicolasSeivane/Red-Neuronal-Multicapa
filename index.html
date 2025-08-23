@@ -2,143 +2,209 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Red Neuronal Multicapa - Visualización</title>
+<title>Visualización MLP</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin:0; background:#f4f7ff; }
-.main-container { max-width:1000px; margin:20px auto; background:#fff; border-radius:12px; padding:20px; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
-h1 { text-align:center; color:#2d3a6b; }
-.controls { display:flex; gap:20px; justify-content:center; margin:20px 0; flex-wrap:wrap; }
-.plot-container { width:800px; height:600px; margin:0 auto; }
+  body{ font-family: system-ui, sans-serif; margin:0; background:#f5f7fa; }
+  .main{ max-width:1200px; margin:20px auto; background:white; padding:20px; border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,.1); }
+  h1{ margin:0 0 10px; text-align:center; }
+  .toolbar{ display:flex; flex-wrap:wrap; gap:15px; justify-content:center; align-items:end; padding:15px; border:1px solid #e5e7eb; border-radius:10px; background:#fafbff; }
+  .field{ display:flex; flex-direction:column; min-width:180px; }
+  label{ font-size:.85rem; margin-bottom:5px; color:#374151; }
+  select, input[type="range"], button{ padding:8px 10px; border:1px solid #ccc; border-radius:8px; }
+  button{ background:#4f46e5; color:white; font-weight:600; cursor:pointer; }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  #plot{ width:100%; height:600px; margin-top:20px; }
+  #info{ margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:10px; background:#fafafa; font-size:.9rem; }
+  pre{ background:#f3f4f6; padding:10px; border-radius:8px; overflow-x:auto; font-size:.85rem; }
+  .badge{ display:inline-block; background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:999px; font-size:.8rem; margin-left:6px; }
 </style>
 </head>
 <body>
-<div class="main-container">
-<h1>Red Neuronal Multicapa - Visualización Entrenamiento</h1>
+<div class="main">
+  <h1>Visualización del entrenamiento MLP</h1>
+  <div class="toolbar">
+    <div class="field">
+      <label>Dataset</label>
+      <select id="dataset"></select>
+    </div>
+    <div class="field">
+      <label>Neuronas ocultas</label>
+      <select id="neurons"></select>
+    </div>
+    <div class="field">
+      <label>Learning rate</label>
+      <select id="lr"></select>
+    </div>
+    <div class="field" style="min-width:260px;">
+      <label>Iteración <span id="iterBadge" class="badge">0/0</span></label>
+      <input type="range" id="iter" min="0" max="0" value="0" step="1">
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="btnBest">Mejor modelo</button>
+    </div>
+  </div>
 
-<div class="controls">
-  <label>Dataset:
-    <select id="dataset"></select>
-  </label>
-  <label>Neuronas ocultas:
-    <select id="neurons"></select>
-  </label>
-  <label>Learning rate:
-    <select id="lr"></select>
-  </label>
-  <label>Iteración:
-    <input type="range" id="iter" min="0" max="0" step="1" value="0">
-    <span id="iterValue">0</span>
-  </label>
-</div>
+  <div id="plot"></div>
 
-<div id="plot" class="plot-container"></div>
+  <div id="info">
+    <strong>Pesos y Sesgos actuales</strong>
+    <div id="error"></div>
+    <pre id="weights"></pre>
+  </div>
 </div>
 
 <script>
-// =================== DATASETS ===================
+// ==================== Datos (ya incluidos en index) ====================
 const datasets = {
   "Dataset1": {
-    "X": [[1.1946,3.9502],[3.9788,1.6595],[1.1907,1.6117],[2.6180,3.8272],[0.2032,1.9208],[3.7946,0.9502],[3.8946,2.1502],[2.1946,3.9502],[2.9571,1.9931],[2.7125,2.8166],[1.9392,1.1032],[2.2072,0.9123],[2.4799,1.9982],[2.4763,0.8020]],
+    "X": [[1.1946,3.9502],[3.9788,1.6595],[1.1907,1.6117],[2.6180,3.8272],
+          [0.2032,1.9208],[3.7946,0.9502],[3.8946,2.1502],[2.1946,3.9502],
+          [2.9571,1.9931],[2.7125,2.8166],[1.9392,1.1032],[2.2072,0.9123],
+          [2.4799,1.9982],[2.4763,0.8020]],
     "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1]
   },
   "Dataset2": {
-    "X": [[2.0,2.0],[2.2,2.1],[1.8,2.2],[2.1,1.8],[0.5,0.5],[0.5,3.5],[3.5,0.5],[3.5,3.5],[1.0,3.0],[3.0,1.0],[1.0,1.0],[3.0,3.0]],
+    "X": [[2.0,2.0],[2.2,2.1],[1.8,2.2],[2.1,1.8],
+          [0.5,0.5],[0.5,3.5],[3.5,0.5],[3.5,3.5],
+          [1.0,3.0],[3.0,1.0],[1.0,1.0],[3.0,3.0]],
     "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1]
   },
   "Dataset3": {
-    "X": [[2.0,2.0],[2.1,2.2],[1.9,2.1],[2.2,1.9],[1.0,2.0],[2.0,1.0],[3.0,2.0],[2.0,3.0],[1.0,1.0],[3.0,1.0],[1.0,3.0],[3.0,3.0]],
+    "X": [[2.0,2.0],[2.1,2.2],[1.9,2.1],[2.2,1.9],
+          [1.0,2.0],[2.0,1.0],[3.0,2.0],[2.0,3.0],
+          [1.0,1.0],[3.0,1.0],[1.0,3.0],[3.0,3.0]],
     "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1]
   }
 };
 
-// =================== INTERFAZ ===================
+let resultados = {}; // cargado via fetch
+
+// ==================== Elementos ====================
 const datasetSel = document.getElementById("dataset");
 const neuronSel = document.getElementById("neurons");
 const lrSel = document.getElementById("lr");
 const iterSlider = document.getElementById("iter");
-const iterValue = document.getElementById("iterValue");
+const iterBadge = document.getElementById("iterBadge");
+const btnBest = document.getElementById("btnBest");
+const weightsBox = document.getElementById("weights");
+const errorBox = document.getElementById("error");
 
-let resultados = {}; // se cargará desde JSON
+// ==================== Helpers ====================
+function flattenBias(b){
+  if (Array.isArray(b)){
+    if (Array.isArray(b[0])) return b[0][0];
+    return b[0];
+  }
+  return b;
+}
 
-function populateSelectors() {
+// ==================== UI Setup ====================
+function populateSelectors(){
   datasetSel.innerHTML = "";
   Object.keys(resultados).forEach(d => datasetSel.add(new Option(d, d)));
-  datasetSel.value = Object.keys(resultados)[0];
+  datasetSel.value = Object.keys(resultados)[0] || "";
   updateNeuronOptions();
 }
 
-function updateNeuronOptions() {
-  neuronSel.innerHTML="";
+function updateNeuronOptions(){
+  neuronSel.innerHTML = "";
   const d = datasetSel.value;
-  Object.keys(resultados[d]).forEach(n => neuronSel.add(new Option(n,n)));
+  Object.keys(resultados[d]).forEach(n => neuronSel.add(new Option(n, n)));
   neuronSel.value = Object.keys(resultados[d])[0];
   updateLrOptions();
 }
 
-function updateLrOptions() {
-  lrSel.innerHTML="";
+function updateLrOptions(){
+  lrSel.innerHTML = "";
   const d = datasetSel.value, n = neuronSel.value;
-  Object.keys(resultados[d][n]).forEach(l => lrSel.add(new Option(l,l)));
+  Object.keys(resultados[d][n]).forEach(l => lrSel.add(new Option(l, l)));
   lrSel.value = Object.keys(resultados[d][n])[0];
   updateIterSlider();
 }
 
-function updateIterSlider() {
+function updateIterSlider(){
   const d = datasetSel.value, n = neuronSel.value, l = lrSel.value;
-  const length = resultados[d]?.[n]?.[l]?.length || 1;
-  iterSlider.max = length - 1;
+  const arr = resultados[d][n][l];
+  iterSlider.max = arr.length-1;
   iterSlider.value = 0;
-  iterValue.textContent = "0";
+  iterBadge.textContent = `0 / ${arr.length-1}`;
   updatePlot();
 }
 
-datasetSel.onchange = updateNeuronOptions;
-neuronSel.onchange = updateLrOptions;
-lrSel.onchange = updateIterSlider;
-iterSlider.oninput = () => { iterValue.textContent = iterSlider.value; updatePlot(); };
+datasetSel.addEventListener("change", updateNeuronOptions);
+neuronSel.addEventListener("change", updateLrOptions);
+lrSel.addEventListener("change", updateIterSlider);
+iterSlider.addEventListener("input", ()=>{
+  iterBadge.textContent = `${iterSlider.value} / ${iterSlider.max}`;
+  updatePlot();
+});
 
-// =================== GRAFICAR ===================
-function updatePlot() {
+btnBest.addEventListener("click", ()=>{
+  const d = datasetSel.value, n = neuronSel.value, l = lrSel.value;
+  const arr = resultados[d][n][l];
+  let bestIdx = 0, minErr = Infinity;
+  arr.forEach((s,i)=>{ if(s.error_best < minErr){minErr=s.error_best; bestIdx=i;} });
+  iterSlider.value = bestIdx;
+  iterBadge.textContent = `${bestIdx} / ${iterSlider.max}`;
+  updatePlot();
+});
+
+// ==================== Plot ====================
+function updatePlot(){
   const d = datasetSel.value, n = neuronSel.value, l = lrSel.value, i = +iterSlider.value;
-  const snap = resultados[d]?.[n]?.[l]?.[i];
+  const snap = resultados[d][n][l][i];
   const data = datasets[d];
 
-  if (!snap) return; // si no hay datos, salimos
-
-  // puntos
-  let pts = {
-    x: data.X.map(p => p[0]),
-    y: data.X.map(p => p[1]),
-    mode: "markers",
-    marker: { color: data.y.map(v => v == 1 ? "blue" : "red"), size: 10 },
-    type: "scatter"
+  const pts = {
+    x: data.X.map(p=>p[0]),
+    y: data.X.map(p=>p[1]),
+    mode:"markers",
+    marker:{ color:data.y.map(v=>v==1?"blue":"red"), size:10 },
+    type:"scatter",
+    name:"Datos"
   };
 
-  // rectas ocultas
   let lines = [];
-  snap.w1.forEach((w, idx) => {
-    const b = snap.b1[idx];
-    const x = [-2, 8];
-    const y = x.map(xx => (-w[0]*xx - b)/w[1]);
-    lines.push({ x, y, mode: "lines", line: { dash: "dot" }, name: `Oculta ${idx+1}` });
+  (snap.w1||[]).forEach((w,idx)=>{
+    const b = flattenBias(snap.b1[idx]);
+    const w0=w[0], w1=w[1];
+    if (Math.abs(w1)<1e-8){
+      const x = -b/(w0||1e-8);
+      lines.push({x:[x,x], y:[-2,8], mode:"lines", line:{dash:"dot"}, name:`Oculta ${idx+1}`});
+    }else{
+      const xs=[-2,8];
+      const ys=xs.map(xx=>(-w0*xx-b)/w1);
+      lines.push({x:xs,y:ys,mode:"lines",line:{dash:"dot"},name:`Oculta ${idx+1}`});
+    }
   });
 
-  Plotly.newPlot("plot", [pts, ...lines], {
-    title: `${d} - ${n} neuronas - lr=${l} - iter=${i}`,
-    xaxis: { range: [-2, 8], zeroline: true },
-    yaxis: { range: [-2, 8], zeroline: true }
-  });
+  const layout = {
+    title:`${d} · ${n} neuronas · lr=${l} · iter=${i}`,
+    xaxis:{range:[-2,8]},
+    yaxis:{range:[-2,8]},
+    margin:{t:50}
+  };
+
+  Plotly.newPlot("plot",[pts,...lines],layout);
+
+  // mostrar info
+  errorBox.innerHTML = `Error actual: <strong>${snap.errores.toFixed(4)}</strong>`;
+  weightsBox.textContent = JSON.stringify({
+    w1:snap.w1, b1:snap.b1,
+    w2:snap.w2, b2:snap.b2
+  },null,2);
 }
 
-// =================== CARGAR JSON ===================
-fetch('resultados.json')
-  .then(response => response.json())
-  .then(data => {
-    resultados = data;
-    populateSelectors();
-  })
-  .catch(err => console.error("Error cargando JSON:", err));
+// ==================== Carga resultados.json ====================
+async function loadResultados(){
+  const res = await fetch("resultados.json");
+  resultados = await res.json();
+  populateSelectors();
+}
+loadResultados();
 </script>
 </body>
 </html>
