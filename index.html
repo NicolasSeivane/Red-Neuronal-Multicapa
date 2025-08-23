@@ -103,8 +103,7 @@ function updatePlot() {
   const d = datasetSel.value, n = neuronSel.value, l = lrSel.value, i = +iterSlider.value;
   const snap = resultados[d]?.[n]?.[l]?.[i];
   const data = datasets[d];
-
-  if (!snap) return; // si no hay datos, salimos
+  if (!snap) return;
 
   // puntos
   let pts = {
@@ -117,10 +116,12 @@ function updatePlot() {
 
   // rectas ocultas
   let lines = [];
-  snap.w1.forEach((w, idx) => {
-    const b = snap.b1[idx];
+  const w1 = snap.w1[0]; // aplanar
+  const b1 = snap.b1[0]; // aplanar
+  w1.forEach((w, idx) => {
+    const bi = Array.isArray(b1[idx]) ? b1[idx][0] : b1[idx]; // tomar valor
     const x = [-2, 8];
-    const y = x.map(xx => (-w[0] * xx - b) / w[1]);
+    const y = x.map(xx => (-w[0] * xx - bi) / w[1]);
     lines.push({ x, y, mode: "lines", line: { dash: "dot" }, name: `Oculta ${idx+1}` });
   });
 
@@ -130,6 +131,7 @@ function updatePlot() {
     yaxis: { range: [-2, 8], zeroline: true }
   });
 }
+
 
 // =================== CARGAR JSON ===================
 fetch('resultados.json')
@@ -143,3 +145,4 @@ fetch('resultados.json')
 </script>
 </body>
 </html>
+
