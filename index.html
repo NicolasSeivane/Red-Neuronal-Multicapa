@@ -1,210 +1,386 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Visualización MLP</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-<style>
-  body{ font-family: system-ui, sans-serif; margin:0; background:#f5f7fa; }
-  .main{ max-width:1200px; margin:20px auto; background:white; padding:20px; border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,.1); }
-  h1{ margin:0 0 10px; text-align:center; }
-  .toolbar{ display:flex; flex-wrap:wrap; gap:15px; justify-content:center; align-items:end; padding:15px; border:1px solid #e5e7eb; border-radius:10px; background:#fafbff; }
-  .field{ display:flex; flex-direction:column; min-width:180px; }
-  label{ font-size:.85rem; margin-bottom:5px; color:#374151; }
-  select, input[type="range"], button{ padding:8px 10px; border:1px solid #ccc; border-radius:8px; }
-  button{ background:#4f46e5; color:white; font-weight:600; cursor:pointer; }
-  button:disabled{ opacity:.5; cursor:not-allowed; }
-  #plot{ width:100%; height:600px; margin-top:20px; }
-  #info{ margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:10px; background:#fafafa; font-size:.9rem; }
-  pre{ background:#f3f4f6; padding:10px; border-radius:8px; overflow-x:auto; font-size:.85rem; }
-  .badge{ display:inline-block; background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:999px; font-size:.8rem; margin-left:6px; }
-</style>
+  <meta charset="utf-8" />
+  <title>Playground MLP — sliders arreglados</title>
+
+  <!-- Plotly + numeric.js -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+
+  <!-- MathJax config (v3) -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+      startup: { typeset: false }
+    };
+  </script>
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root{
+      --bg: #f0f4ff;
+      --card: #fff;
+      --muted: #6b7280;
+      --accent: #2d3a6b;
+    }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(135deg,var(--bg) 0%, #eef2ff 100%);
+      color:#0f172a;
+    }
+    .container{
+      max-width:1020px;
+      margin:28px auto;
+      background:var(--card);
+      border-radius:12px;
+      padding:18px;
+      box-shadow: 0 10px 30px rgba(45,58,107,0.08);
+    }
+    header { text-align:center; margin-bottom:8px; }
+    header h1 { color:var(--accent); margin:6px 0; }
+    header p { margin:0; color:var(--muted); font-size:14px; }
+
+    .content{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:18px;
+      margin-top:18px;
+      align-items:start;
+    }
+
+    .panel { background:#f7f9ff; padding:12px; border-radius:10px; border:1px solid rgba(45,58,107,0.04); }
+
+    /* controls */
+    .controls { display:flex; flex-direction:column; gap:10px; }
+    .row { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+    .row select, .row button { width:100%; }
+    .neuron-box { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+    .neuron { padding:8px; background:var(--card); border-radius:8px; border:1px solid rgba(0,0,0,0.04); }
+    label.small { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+
+    input[type=range]{ width:100%; }
+
+    /* plot column centered */
+    .plot-area { display:flex; flex-direction:column; align-items:center; }
+    #playground-plot { width:100%; max-width:640px; height:600px; }
+
+    .weights { font-family: monospace; white-space:pre; background:#fff; padding:8px; border-radius:6px; margin-top:10px; }
+
+    button.btn { border:0; padding:8px 10px; border-radius:8px; cursor:pointer; color:#fff; background:var(--accent); }
+    button.ghost { background:transparent; border:1px solid rgba(45,58,107,0.12); color:var(--accent); }
+
+    @media (max-width:920px){
+      .content{ grid-template-columns: 1fr; }
+      #playground-plot{ max-width:100%; height:520px; }
+    }
+  </style>
 </head>
 <body>
-<div class="main">
-  <h1>Visualización del entrenamiento MLP</h1>
-  <div class="toolbar">
-    <div class="field">
-      <label>Dataset</label>
-      <select id="dataset"></select>
+  <div class="container">
+    <header style="text-align:center; margin-bottom: 30px;">
+  <h1 style="color:#2d3a6b; font-size:2em; margin-bottom:10px;">Red Neuronal Multicapa - Activación Tanh()</h1>
+  <p style="color:#4b5ca7; font-size:1.1em; line-height:1.5; max-width:800px; margin:0 auto;">
+    Esta visualización muestra el espacio de decisión de una red neuronal multicapa con una capa oculta y n neuronas. 
+    Cada neurona utiliza la función de activación <b>tanh()</b>. 
+    Realizado para la materia <b>Fundamentos de Redes Neuronales</b> — Nicolás Seivane.
+  </p>
+</header>
+
+
+    <div class="content">
+      <!-- LEFT: controls -->
+      <div>
+        <div class="panel controls">
+          <div class="row">
+            <div style="flex:1">
+              <label class="small"><strong>Neuronas ocultas</strong></label>
+              <select id="play_neurons" aria-label="neuronas ocultas">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label class="small"><strong>Visualización</strong></label>
+              <select id="play_mode" aria-label="modo visualización">
+                <option value="binary">Binaria (sign)</option>
+                <option value="continuous">Continua (tanh)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;">
+            <button id="resetBtn" class="btn">Reset</button>
+            <button id="randomizeBtn" class="ghost">Random</button>
+          </div>
+
+          <div class="neuron-box panel" id="play_neurons_controls" aria-live="polite">
+            <!-- se insertan sliders -->
+          </div>
+
+          <div class="panel" style="margin-top:8px;">
+            <div style="font-size:13px;color:var(--muted)"><strong>Pesos de salida</strong></div>
+            <div id="play_output_controls" style="margin-top:10px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: plot (centrado) -->
+      <div class="plot-area">
+        <div id="playground-plot" class="panel" role="img" aria-label="Gráfico MLP"></div>
+      </div>
     </div>
-    <div class="field">
-      <label>Neuronas ocultas</label>
-      <select id="neurons"></select>
-    </div>
-    <div class="field">
-      <label>Learning rate</label>
-      <select id="lr"></select>
-    </div>
-    <div class="field" style="min-width:260px;">
-      <label>Iteración <span id="iterBadge" class="badge">0/0</span></label>
-      <input type="range" id="iter" min="0" max="0" value="0" step="1">
-    </div>
-    <div class="field">
-      <label>&nbsp;</label>
-      <button id="btnBest">Mejor modelo</button>
+
+    <!-- info and LaTeX -->
+    <div style="margin-top:14px;" class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <strong>Fórmulas</strong>
+          <div style="color:var(--muted);margin-top:6px;">
+            $$h_j=\tanh(w_{1j}x + w_{2j}y + b_j)$$
+            $$\hat{y}=\tanh\Big(\sum_j w_j^{out} h_j + b^{out}\Big)$$
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;color:var(--muted)">Rango fijo</div>
+          <div style="font-weight:600">x ∈ [-2,6] &nbsp; y ∈ [-2,6]</div>
+        </div>
+      </div>
+
+      <div class="weights" id="weights_display" aria-live="polite"></div>
     </div>
   </div>
-
-  <div id="plot"></div>
-
-  <div id="info">
-    <strong>Pesos y Sesgos actuales</strong>
-    <div id="error"></div>
-    <pre id="weights"></pre>
-  </div>
-</div>
 
 <script>
-// ==================== Datos (ya incluidos en index) ====================
-const datasets = {
-  "Dataset1": {
-    "X": [[1.1946,3.9502],[3.9788,1.6595],[1.1907,1.6117],[2.6180,3.8272],
-          [0.2032,1.9208],[3.7946,0.9502],[3.8946,2.1502],[2.1946,3.9502],
-          [2.9571,1.9931],[2.7125,2.8166],[1.9392,1.1032],[2.2072,0.9123],
-          [2.4799,1.9982],[2.4763,0.8020]],
-    "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1]
-  },
-  "Dataset2": {
-    "X": [[2.0,2.0],[2.2,2.1],[1.8,2.2],[2.1,1.8],
-          [0.5,0.5],[0.5,3.5],[3.5,0.5],[3.5,3.5],
-          [1.0,3.0],[3.0,1.0],[1.0,1.0],[3.0,3.0]],
-    "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1]
-  },
-  "Dataset3": {
-    "X": [[2.0,2.0],[2.1,2.2],[1.9,2.1],[2.2,1.9],
-          [1.0,2.0],[2.0,1.0],[3.0,2.0],[2.0,3.0],
-          [1.0,1.0],[3.0,1.0],[1.0,3.0],[3.0,3.0]],
-    "y": [1,1,1,1,1,1,1,1,-1,-1,-1,-1]
-  }
+/* ---------------- DATASET ---------------- */
+const dataset = {
+  X: [
+    [1.1946,3.9502],[3.9788,1.6595],[1.1907,1.6117],[2.6180,3.8272],
+    [0.2032,1.9208],[3.7946,0.9502],[3.8946,2.1502],[2.1946,3.9502],
+    [2.9571,1.9931],[2.7125,2.8166],[1.9392,1.1032],[2.2072,0.9123],
+    [2.4799,1.9982],[2.4763,0.8020]
+  ],
+  y: [1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1]
 };
 
-let resultados = {}; // cargado via fetch
+/* ---------------- STATE ---------------- */
+let neurons = [];
+let outputWeights = [];
+let outputBias = 0;
 
-// ==================== Elementos ====================
-const datasetSel = document.getElementById("dataset");
-const neuronSel = document.getElementById("neurons");
-const lrSel = document.getElementById("lr");
-const iterSlider = document.getElementById("iter");
-const iterBadge = document.getElementById("iterBadge");
-const btnBest = document.getElementById("btnBest");
-const weightsBox = document.getElementById("weights");
-const errorBox = document.getElementById("error");
+/* simple random */
+const rand = ()=> (Math.random()*2-1);
 
-// ==================== Helpers ====================
-function flattenBias(b){
-  if (Array.isArray(b)){
-    if (Array.isArray(b[0])) return b[0][0];
-    return b[0];
+/* init with n neurons and render controls once */
+function initPlayground(n = parseInt(document.getElementById('play_neurons').value)) {
+  neurons = [];
+  for(let i=0;i<n;i++) neurons.push({ w1: rand(), w2: rand(), b: rand() });
+  outputWeights = Array(n).fill(0).map(()=>rand());
+  outputBias = rand();
+  renderControls();
+  updatePlaygroundMLP();
+}
+
+/* render sliders (only when neuron count changes or reset/random) */
+function renderControls(){
+  const cont = document.getElementById('play_neurons_controls');
+  cont.innerHTML = '';
+  neurons.forEach((ne, i)=>{
+    const block = document.createElement('div');
+    block.className = 'neuron';
+    block.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>Neurona ${i+1}</strong>
+        <small style="color:${'#6b7280'}">h = tanh(w·x + b)</small>
+      </div>
+      <div style="margin-top:6px;">
+        <label class="small">w₁ <span id="val_n${i}_w1" style="float:right">${ne.w1.toFixed(2)}</span></label>
+        <input id="n${i}_w1" class="param-input" data-i="${i}" data-type="w1" type="range" min="-2" max="2" step="0.01" value="${ne.w1}">
+        <label class="small">w₂ <span id="val_n${i}_w2" style="float:right">${ne.w2.toFixed(2)}</span></label>
+        <input id="n${i}_w2" class="param-input" data-i="${i}" data-type="w2" type="range" min="-2" max="2" step="0.01" value="${ne.w2}">
+        <label class="small">b <span id="val_n${i}_b" style="float:right">${ne.b.toFixed(2)}</span></label>
+        <input id="n${i}_b" class="param-input" data-i="${i}" data-type="b" type="range" min="-5" max="5" step="0.01" value="${ne.b}">
+      </div>
+    `;
+    cont.appendChild(block);
+  });
+
+  // output weights controls
+  const out = document.getElementById('play_output_controls');
+  out.innerHTML = '';
+  outputWeights.forEach((w,j)=>{
+    const wdiv = document.createElement('div');
+    wdiv.innerHTML = `
+      <label class="small">w_out[${j+1}] <span id="val_out_w${j}" style="float:right">${w.toFixed(2)}</span></label>
+      <input id="out_w${j}" class="param-input" data-j="${j}" data-type="out_w" type="range" min="-2" max="2" step="0.01" value="${w}">
+    `;
+    out.appendChild(wdiv);
+  });
+  const biasDiv = document.createElement('div');
+  biasDiv.innerHTML = `
+    <label class="small">b_out <span id="val_out_b" style="float:right">${outputBias.toFixed(2)}</span></label>
+    <input id="out_b" class="param-input" data-type="out_b" type="range" min="-5" max="5" step="0.01" value="${outputBias}">
+  `;
+  out.appendChild(biasDiv);
+
+  // attach listeners (only once per input)
+  document.querySelectorAll('.param-input').forEach(inp=>{
+    inp.oninput = handleParamInput;
+  });
+
+  // reset/random buttons
+  document.getElementById('resetBtn').onclick = ()=> {
+    neurons.forEach(n => { n.w1=0; n.w2=0; n.b=0; });
+    for(let j=0;j<outputWeights.length;j++) outputWeights[j]=0;
+    outputBias = 0;
+    // update DOM values & spans (without re-render full structure)
+    syncStateToDOM();
+    updatePlaygroundMLP();
+  };
+  document.getElementById('randomizeBtn').onclick = ()=> {
+    neurons.forEach(n => { n.w1=rand(); n.w2=rand(); n.b=rand(); });
+    for(let j=0;j<outputWeights.length;j++) outputWeights[j]=rand();
+    outputBias = rand();
+    syncStateToDOM();
+    updatePlaygroundMLP();
+  };
+}
+
+/* sync JS state -> DOM inputs & value spans (used after reset/randomize) */
+function syncStateToDOM(){
+  neurons.forEach((n,i)=>{
+    const w1 = document.getElementById(`n${i}_w1`);
+    const w2 = document.getElementById(`n${i}_w2`);
+    const b  = document.getElementById(`n${i}_b`);
+    const v1 = document.getElementById(`val_n${i}_w1`);
+    const v2 = document.getElementById(`val_n${i}_w2`);
+    const vb = document.getElementById(`val_n${i}_b`);
+    if(w1){ w1.value = n.w1; v1.textContent = n.w1.toFixed(2); }
+    if(w2){ w2.value = n.w2; v2.textContent = n.w2.toFixed(2); }
+    if(b){  b.value  = n.b;  vb.textContent = n.b.toFixed(2); }
+  });
+
+  outputWeights.forEach((ow,j)=>{
+    const iw = document.getElementById(`out_w${j}`);
+    const span = document.getElementById(`val_out_w${j}`);
+    if(iw){ iw.value = ow; if(span) span.textContent = ow.toFixed(2); }
+  });
+  const ob = document.getElementById('out_b');
+  const spanb = document.getElementById('val_out_b');
+  if(ob){ ob.value = outputBias; if(spanb) spanb.textContent = outputBias.toFixed(2); }
+}
+
+/* handle any slider input */
+function handleParamInput(e){
+  const el = e.target;
+  const type = el.dataset.type;
+  if(type === 'w1' || type === 'w2' || type === 'b'){
+    const i = parseInt(el.dataset.i);
+    const val = parseFloat(el.value);
+    if(type==='w1') neurons[i].w1 = val;
+    if(type==='w2') neurons[i].w2 = val;
+    if(type==='b')  neurons[i].b  = val;
+    // update span
+    const span = document.getElementById(`val_n${i}_${type}`);
+    if(span) span.textContent = val.toFixed(2);
+  } else if(type === 'out_w'){
+    const j = parseInt(el.dataset.j);
+    const val = parseFloat(el.value);
+    outputWeights[j] = val;
+    const span = document.getElementById(`val_out_w${j}`);
+    if(span) span.textContent = val.toFixed(2);
+  } else if(type === 'out_b'){
+    const val = parseFloat(el.value);
+    outputBias = val;
+    const span = document.getElementById('val_out_b');
+    if(span) span.textContent = val.toFixed(2);
   }
-  return b;
+  // update the visualization after handling the value
+  updatePlaygroundMLP();
 }
 
-// ==================== UI Setup ====================
-function populateSelectors(){
-  datasetSel.innerHTML = "";
-  Object.keys(resultados).forEach(d => datasetSel.add(new Option(d, d)));
-  datasetSel.value = Object.keys(resultados)[0] || "";
-  updateNeuronOptions();
+/* MLP forward */
+function mlpOutput(x,y, mode='binary'){
+  const hidden = neurons.map(n => Math.tanh(n.w1*x + n.w2*y + n.b));
+  let sum = 0;
+  for(let j=0;j<hidden.length;j++) sum += outputWeights[j]*hidden[j];
+  sum += outputBias;
+  const out = Math.tanh(sum);
+  return (mode==='binary') ? (Math.sign(out) || 1) : out;
 }
 
-function updateNeuronOptions(){
-  neuronSel.innerHTML = "";
-  const d = datasetSel.value;
-  Object.keys(resultados[d]).forEach(n => neuronSel.add(new Option(n, n)));
-  neuronSel.value = Object.keys(resultados[d])[0];
-  updateLrOptions();
-}
+/* update plot and displays */
+function updatePlaygroundMLP(){
+  const mode = document.getElementById('play_mode').value;
+  const xMin=-2, xMax=6, yMin=-2, yMax=6;
+  const nx=120, ny=120;
+  const xs = numeric.linspace(xMin,xMax,nx);
+  const ys = numeric.linspace(yMin,yMax,ny);
 
-function updateLrOptions(){
-  lrSel.innerHTML = "";
-  const d = datasetSel.value, n = neuronSel.value;
-  Object.keys(resultados[d][n]).forEach(l => lrSel.add(new Option(l, l)));
-  lrSel.value = Object.keys(resultados[d][n])[0];
-  updateIterSlider();
-}
+  const Z = ys.map(yy => xs.map(xx => mlpOutput(xx, yy, mode)));
 
-function updateIterSlider(){
-  const d = datasetSel.value, n = neuronSel.value, l = lrSel.value;
-  const arr = resultados[d][n][l];
-  iterSlider.max = arr.length-1;
-  iterSlider.value = 0;
-  iterBadge.textContent = `0 / ${arr.length-1}`;
-  updatePlot();
-}
-
-datasetSel.addEventListener("change", updateNeuronOptions);
-neuronSel.addEventListener("change", updateLrOptions);
-lrSel.addEventListener("change", updateIterSlider);
-iterSlider.addEventListener("input", ()=>{
-  iterBadge.textContent = `${iterSlider.value} / ${iterSlider.max}`;
-  updatePlot();
-});
-
-btnBest.addEventListener("click", ()=>{
-  const d = datasetSel.value, n = neuronSel.value, l = lrSel.value;
-  const arr = resultados[d][n][l];
-  let bestIdx = 0, minErr = Infinity;
-  arr.forEach((s,i)=>{ if(s.error_best < minErr){minErr=s.error_best; bestIdx=i;} });
-  iterSlider.value = bestIdx;
-  iterBadge.textContent = `${bestIdx} / ${iterSlider.max}`;
-  updatePlot();
-});
-
-// ==================== Plot ====================
-function updatePlot(){
-  const d = datasetSel.value, n = neuronSel.value, l = lrSel.value, i = +iterSlider.value;
-  const snap = resultados[d][n][l][i];
-  const data = datasets[d];
-
-  const pts = {
-    x: data.X.map(p=>p[0]),
-    y: data.X.map(p=>p[1]),
-    mode:"markers",
-    marker:{ color:data.y.map(v=>v==1?"blue":"red"), size:10 },
-    type:"scatter",
-    name:"Datos"
+  const heat = {
+    z: Z, x: xs, y: ys, type:'heatmap',
+    zmin:-1, zmax:1,
+    colorscale: (mode==='binary') ? [['0','#2b6cb0'],['1','#d53f3f']] : 'RdBu',
+    showscale: (mode==='continuous'),
+    hoverinfo: 'z',
+    opacity:0.85
   };
 
-  let lines = [];
-  (snap.w1||[]).forEach((w,idx)=>{
-    const b = flattenBias(snap.b1[idx]);
-    const w0=w[0], w1=w[1];
-    if (Math.abs(w1)<1e-8){
-      const x = -b/(w0||1e-8);
-      lines.push({x:[x,x], y:[-2,8], mode:"lines", line:{dash:"dot"}, name:`Oculta ${idx+1}`});
-    }else{
-      const xs=[-2,8];
-      const ys=xs.map(xx=>(-w0*xx-b)/w1);
-      lines.push({x:xs,y:ys,mode:"lines",line:{dash:"dot"},name:`Oculta ${idx+1}`});
+  const pts = {
+    x: dataset.X.map(p=>p[0]),
+    y: dataset.X.map(p=>p[1]),
+    mode:'markers', type:'scatter',
+    marker:{ color: dataset.y.map(c=> c===1? '#d53f3f' : '#2b6cb0'), size:10, line:{color:'#111827',width:0.5} }
+  };
+
+  const hps = [];
+  neurons.forEach((n,i)=>{
+    if(Math.abs(n.w2) > 1e-8){
+      const xsLine = numeric.linspace(xMin,xMax,2);
+      const ysLine = xsLine.map(x => (-n.w1*x - n.b)/n.w2);
+      hps.push({ x: xsLine, y: ysLine, mode:'lines', line:{dash:'dash', width:2, color:'#111827'}, opacity:0.9 });
     }
   });
 
+  const traces = [heat, pts, ...hps];
   const layout = {
-    title:`${d} · ${n} neuronas · lr=${l} · iter=${i}`,
-    xaxis:{range:[-2,8]},
-    yaxis:{range:[-2,8]},
-    margin:{t:50}
+    margin:{t:10, r:10, l:40, b:40},
+    xaxis:{range:[xMin,xMax], title:'x₁'},
+    yaxis:{range:[yMin,yMax], title:'x₂'},
+    paper_bgcolor:'transparent', plot_bgcolor:'transparent', showlegend:false
   };
 
-  Plotly.newPlot("plot",[pts,...lines],layout);
+  Plotly.react('playground-plot', traces, layout, {displayModeBar:false});
 
-  // mostrar info
-  errorBox.innerHTML = `Error actual: <strong>${snap.errores.toFixed(4)}</strong>`;
-  weightsBox.textContent = JSON.stringify({
-    w1:snap.w1, b1:snap.b1,
-    w2:snap.w2, b2:snap.b2
-  },null,2);
+  // update weights display + LaTeX
+  const wdiv = document.getElementById('weights_display');
+  let txt = '';
+  neurons.forEach((n,i)=> txt += `Neurona ${i+1}: w=[${n.w1.toFixed(3)}, ${n.w2.toFixed(3)}], b=${n.b.toFixed(3)}\n`);
+  txt += `Salida: w_out=[${outputWeights.map(w=>w.toFixed(3)).join(', ')}], b_out=${outputBias.toFixed(3)}\n\n`;
+
+  const terms = neurons.map((_,j)=> `${outputWeights[j].toFixed(3)}\\,h_{${j+1}}`);
+  const latex = `\\\\hat{y} = \\\\tanh\\\\left(${terms.join(' + ')} + ${outputBias.toFixed(3)}\\\\right)`;
+  wdiv.innerHTML = `<pre style="margin:0;">${txt}</pre><div style="margin-top:8px;"><strong>Expresión (LaTeX):</strong><div id="latex_here">$$${latex}$$</div></div>`;
+
+  if(window.MathJax && window.MathJax.typesetPromise){
+    window.MathJax.typesetPromise().catch(e=>console.warn('MathJax:',e));
+  }
 }
 
-// ==================== Carga resultados.json ====================
-async function loadResultados(){
-  const res = await fetch("resultados.json");
-  resultados = await res.json();
-  populateSelectors();
-}
-loadResultados();
+/* UI bindings */
+document.getElementById('play_neurons').onchange = (e)=> initPlayground(parseInt(e.target.value));
+document.getElementById('play_mode').onchange = ()=> updatePlaygroundMLP();
+
+/* init */
+initPlayground(2);
 </script>
 </body>
 </html>
